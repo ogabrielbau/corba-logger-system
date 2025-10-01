@@ -2,7 +2,8 @@
 #define LOGGER_I_H
 
 #include <iostream>
-#include "LoggerS.h"   // gerado por tao_idl
+#include <string>
+#include "LoggerS.h"   // gerado pelo tao_idl
 
 class Logger_i : public POA_LoggerModule::Logger
 {
@@ -12,14 +13,14 @@ public:
 
     // operação remota
     virtual void log(LoggerModule::Severity severidade,
-                     const char* endereco,
+                     std::string endereco,
                      CORBA::UShort pid,
                      CORBA::ULong hora,
-                     const char* msg);
+                     std::string msg) override;
 
     // atributo verbose - getter / setter
-    virtual CORBA::Boolean verbose();
-    virtual void verbose(CORBA::Boolean v);
+    virtual CORBA::Boolean verbose() override;
+    virtual void verbose(CORBA::Boolean v) override;
 
 private:
     CORBA::Boolean verbose_;

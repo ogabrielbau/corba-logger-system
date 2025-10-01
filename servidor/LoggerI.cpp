@@ -3,7 +3,7 @@
 #include <ctime>
 
 Logger_i::Logger_i()
- : verbose_(true) // por padrão imprime, você pode mudar
+ : verbose_(true) // padrão: imprimir
 {
 }
 
@@ -12,15 +12,14 @@ Logger_i::~Logger_i()
 }
 
 void Logger_i::log(LoggerModule::Severity severidade,
-                   const char* endereco,
-                   CORBA::UShort pid,
-                   CORBA::ULong hora,
-                   const char* msg)
+                    std::string endereco,
+                    CORBA::UShort pid,
+                    CORBA::ULong hora,
+                    std::string msg)
 {
-    // Se verbose_ == true, imprime a mensagem recebida
     if (verbose_)
     {
-        // converte hora (segundos desde epoch) para string legível
+        // converte hora (segundos desde epoch) para string legível (UTC)
         std::time_t t = static_cast<std::time_t>(hora);
         std::tm tm_buf;
 #if defined(_WIN32)
@@ -38,6 +37,7 @@ void Logger_i::log(LoggerModule::Severity severidade,
             case LoggerModule::WARNING: sev_str = "WARNING"; break;
             case LoggerModule::ERROR: sev_str = "ERROR"; break;
             case LoggerModule::CRITICAL: sev_str = "CRITICAL"; break;
+            default: sev_str = "UNKNOWN"; break;
         }
 
         std::cout << "---- Logger Notification ----\n";
@@ -48,7 +48,6 @@ void Logger_i::log(LoggerModule::Severity severidade,
         std::cout << "Msg:        " << msg << "\n";
         std::cout << "-----------------------------" << std::endl;
     }
-    // Se verbose_ == false, não imprime (a operação ainda retorna normalmente)
 }
 
 CORBA::Boolean Logger_i::verbose()
