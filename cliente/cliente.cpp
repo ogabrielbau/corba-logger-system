@@ -1,62 +1,59 @@
 #include <iostream>
 #include <string>
-#include <orbsvcs/CosNamingC.h>
 #include "LoggerC.h"
+#include "LoggerS.h"
+#include <tao/corba.h>
+#include <tao/ORB_Core.h>
+#include <CosNamingC.h>
 
-int main(int argc, char* argv[])
-{
-    try
-    {
+using namespace std;
+
+int main(int argc, char* argv[]) {
+    try {
         CORBA::ORB_var orb = CORBA::ORB_init(argc, argv);
 
-        // Resolve Naming Service
-        CORBA::Object_var obj = orb->resolve_initial_references("NameService");
-        CosNaming::NamingContext_var naming_context = CosNaming::NamingContext::_narrow(obj.in());
+        CORBA::Object_var obj = orb->string_to_object("corbaloc::localhost:1050/NameService");
+        CosNaming::NamingContext_var nc = CosNaming::NamingContext::_narrow(obj);
 
         CosNaming::Name name;
         name.length(1);
         name[0].id = CORBA::string_dup("LoggerService");
-        name[0].kind = CORBA::string_dup("");
 
-        CORBA::Object_var logger_obj = naming_context->resolve(name);
+        Logger_var logger = Logger::_narrow(nc->resolve(name));
 
-        LoggerModule::Logger_var logger = LoggerModule::Logger::_narrow(logger_obj.in());
-        if (CORBA::is_nil(logger.in()))
-        {
-            std::cerr << "Nao foi possivel obter referencia ao Logger." << std::endl;
+        if (CORBA::is_nil(logger)) {
+            cerr << "Erro: LoggerService não encontrado!" << endl;
             return 1;
         }
 
-        // Exemplo: alterar verbose remotamente para true (imprimir)
-        std::cout << "Setando verbose = true no servidor..." << std::endl;
-        logger->verbose(true);
+        cout << "Cliente conectado ao LoggerService." << endl;
 
-        // Chamar log() com dados fictícios
-        LoggerModule::Severity sev = LoggerModule::ERROR;
-        const char* endereco = "192.168.0.10:4321";
-        CORBA::UShort pid = 1234;
-        CORBA::ULong hora = static_cast<CORBA::ULong>(time(nullptr)); // segundos desde epoch
-        const char* msg = "Exemplo de erro ficticio vindo do cliente.";
+        // Loop para enviar múltiplas mensagens
+        string severity, message;
+        int pid = 1234; // PID fictício
+        string ip = "192.168.0.10";
 
-        logger->log(sev, endereco, pid, hora, msg);
-        std::cout << "log() chamado (verbose=true)." << std::endl;
+        while (true) {
+            cout << "Digite a severidade (INFO, WARN, DEBUG, ERROR) ou 'sair' para encerrar: ";
+            cin >> severity;
+            if (severity == "sair") break;
 
-        // Agora desliga a impressão no servidor
-        std::cout << "Setando verbose = false no servidor..." << std::endl;
-        logger->verbose(false);
+            cin.ignore(); // Limpa buffer
+            cout << "Digite a mensagem: ";
+            getline(cin, message);
 
-        // Chamar log() que agora nao deve ser impresso
-        logger->log(LoggerModule::WARNING, "10.0.0.5:5555", 4321, hora, "Aviso ficticio - Nao deve aparecer se verbose==false");
-        std::cout << "log() chamado (verbose=false)." << std::endl;
+            try {
+                logger->log(severity.c_str(), ip.c_str(), pid, message.c_str());
+                cout << "Mensagem enviada!" << endl;
+            } catch (const CORBA::Exception& ex) {
+                cerr << "Falha ao enviar log: " << ex._name() << endl;
+            }
+        }
 
         orb->destroy();
-    }
-    catch (const CORBA::Exception& ex)
-    {
-        std::cerr << "Excecao CORBA no cliente: ";
-        ex._tao_print_exception("Exception");
+    } catch (const CORBA::Exception& ex) {
+        cerr << "Exceção CORBA: " << ex._name() << endl;
         return 1;
     }
-
     return 0;
 }

@@ -1,55 +1,76 @@
 #include <iostream>
+#include <fstream>
 #include <string>
-#include <orbsvcs/CosNamingC.h>
-#include "LoggerI.h"
+#include <ctime>
+#include "LoggerS.h"
+#include "LoggerC.h"
+#include "Logger_i.h"
+#include <tao/corba.h>
+#include <tao/PortableServer/PortableServer.h>
+#include <tao/ORB_Core.h>
 
-int main(int argc, char* argv[])
-{
-    try
-    {
+using namespace std;
+
+ofstream logFile("logger.txt", ios::app); // Arquivo para registrar logs
+
+// Função para imprimir log no console e salvar em arquivo
+void log_message(const string &severity, const string &ip, int pid, const string &msg) {
+    time_t now = time(nullptr);
+    cout << "---- Logger Notification ----" << endl;
+    cout << "Severidade: " << severity << endl;
+    cout << "Endereco:   " << ip << endl;
+    cout << "PID:        " << pid << endl;
+    cout << "Hora:       " << ctime(&now);
+    cout << "Msg:        " << msg << endl;
+    cout << "-----------------------------" << endl;
+
+    if (logFile.is_open()) {
+        logFile << severity << "," << ip << "," << pid << "," << now << "," << msg << endl;
+    }
+}
+
+// Implementação do Logger
+class Logger_i : public POA_Logger {
+public:
+    void log(const char* severity, const char* ip, CORBA::Long pid, const char* msg) override {
+        try {
+            log_message(severity, ip, pid, msg);
+        } catch (const CORBA::Exception& ex) {
+            cerr << "Erro ao processar log: " << ex._name() << endl;
+        }
+    }
+};
+
+int main(int argc, char* argv[]) {
+    try {
         CORBA::ORB_var orb = CORBA::ORB_init(argc, argv);
 
-        CORBA::Object_var poa_obj = orb->resolve_initial_references("RootPOA");
-        PortableServer::POA_var root_poa = PortableServer::POA::_narrow(poa_obj.in());
-        PortableServer::POAManager_var poa_manager = root_poa->the_POAManager();
+        CORBA::Object_var poaObj = orb->resolve_initial_references("RootPOA");
+        PortableServer::POA_var rootPoa = PortableServer::POA::_narrow(poaObj);
 
-        // Cria instancia do servant
-        Logger_i* logger_servant = new Logger_i();
+        PortableServer::POAManager_var poaManager = rootPoa->the_POAManager();
+        poaManager->activate();
 
-        PortableServer::ObjectId_var id = root_poa->activate_object(logger_servant);
-        CORBA::Object_var logger_ref = root_poa->id_to_reference(id.in());
+        Logger_i loggerImpl;
 
-        LoggerModule::Logger_var logger = LoggerModule::Logger::_narrow(logger_ref.in());
+        CORBA::Object_var loggerObj = loggerImpl._this();
 
-        CORBA::Object_var obj = orb->resolve_initial_references("NameService");
-        CosNaming::NamingContext_var naming_context = CosNaming::NamingContext::_narrow(obj.in());
-        if (CORBA::is_nil(naming_context.in()))
-        {
-            std::cerr << "Erro ao obter Naming Service" << std::endl;
-            return 1;
-        }
+        CORBA::Object_var namingObj = orb->string_to_object("corbaloc::localhost:1050/NameService");
+        CosNaming::NamingContext_var namingContext = CosNaming::NamingContext::_narrow(namingObj);
 
         CosNaming::Name name;
         name.length(1);
         name[0].id = CORBA::string_dup("LoggerService");
-        name[0].kind = CORBA::string_dup("");
 
-        naming_context->rebind(name, logger.in()); // rebind para sobrescrever se existir
+        namingContext->rebind(name, loggerObj);
 
-        poa_manager->activate();
-        std::cout << "Servidor Logger pronto e registrado no Naming Service como 'LoggerService'." << std::endl;
+        cout << "Servidor Logger pronto e registrado no Naming Service como 'LoggerService'." << endl;
 
+        // Mantém o servidor rodando
         orb->run();
-
-        root_poa->destroy(1, 1);
-        orb->destroy();
-    }
-    catch (const CORBA::Exception& ex)
-    {
-        std::cerr << "Excecao CORBA no servidor: ";
-        ex._tao_print_exception("Exception");
+    } catch (const CORBA::Exception& ex) {
+        cerr << "Exceção CORBA: " << ex._name() << endl;
         return 1;
     }
-
     return 0;
 }
