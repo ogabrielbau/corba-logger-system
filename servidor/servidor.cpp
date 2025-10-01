@@ -7,10 +7,8 @@ int main(int argc, char* argv[])
 {
     try
     {
-        // Inicializa ORB
         CORBA::ORB_var orb = CORBA::ORB_init(argc, argv);
 
-        // Obtém RootPOA e POA Manager
         CORBA::Object_var poa_obj = orb->resolve_initial_references("RootPOA");
         PortableServer::POA_var root_poa = PortableServer::POA::_narrow(poa_obj.in());
         PortableServer::POAManager_var poa_manager = root_poa->the_POAManager();
@@ -18,14 +16,11 @@ int main(int argc, char* argv[])
         // Cria instancia do servant
         Logger_i* logger_servant = new Logger_i();
 
-        // Aceita o servant no POA e obtém referência CORBA
         PortableServer::ObjectId_var id = root_poa->activate_object(logger_servant);
         CORBA::Object_var logger_ref = root_poa->id_to_reference(id.in());
 
-        // Narrow para o tipo Logger
         LoggerModule::Logger_var logger = LoggerModule::Logger::_narrow(logger_ref.in());
 
-        // Publique a IOR no Servidor de Nomes (CosNaming)
         CORBA::Object_var obj = orb->resolve_initial_references("NameService");
         CosNaming::NamingContext_var naming_context = CosNaming::NamingContext::_narrow(obj.in());
         if (CORBA::is_nil(naming_context.in()))
@@ -34,7 +29,6 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        // Nome no Naming Service: "LoggerService"
         CosNaming::Name name;
         name.length(1);
         name[0].id = CORBA::string_dup("LoggerService");
@@ -42,14 +36,11 @@ int main(int argc, char* argv[])
 
         naming_context->rebind(name, logger.in()); // rebind para sobrescrever se existir
 
-        // Ativa POA Manager e entra em loop
         poa_manager->activate();
         std::cout << "Servidor Logger pronto e registrado no Naming Service como 'LoggerService'." << std::endl;
 
-        // Mantem ORB rodando (aceitando requisições)
         orb->run();
 
-        // cleanup (quando orb->shutdown for chamado)
         root_poa->destroy(1, 1);
         orb->destroy();
     }

@@ -1,4 +1,3 @@
-# Makefile adaptado para seu ambiente (/opt/ACE_wrappers)
 ACE_ROOT ?= /opt/ACE_wrappers
 TAO_ROOT ?= $(ACE_ROOT)/TAO
 
