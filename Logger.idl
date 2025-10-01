@@ -1,0 +1,19 @@
+module LoggerModule
+{
+  // Severidade possível
+  enum Severity { DEBUG, WARNING, ERROR, CRITICAL };
+
+  // Interface Logger
+  interface Logger
+  {
+    // operação que recebe os parâmetros descritos
+    void log(in Severity severidade,
+             in string endereco,
+             in unsigned short pid,
+             in unsigned long hora,
+             in string msg);
+
+    // atributo booleano remoto para controlar a impressão
+    attribute boolean verbose;
+  };
+};
